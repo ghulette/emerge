@@ -3,6 +3,8 @@ name = "emerge"
 version = "0.1.0"
 description = "A NetLogo-like agent-based modeling library in plain Python"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Geoff Hulette", email = "geoff@hulette.net" }
 ]

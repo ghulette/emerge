@@ -94,3 +94,7 @@ any point).
 World settings are constructor arguments: `max_x`, `max_y` (the world spans
 `-max_x..max_x` patches) and `patch_size` (pixels). For world-level behavior, subclass
 `Model` and override `setup()` or `go()`, setting the same names as class attributes.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
