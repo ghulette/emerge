@@ -2,6 +2,8 @@
 
 A small NetLogo-like agent-based modeling library, written (and used) in plain Python.
 
+<img src="docs/images/grazing.png" alt="Cows grazing a field of grass in the emerge window" width="640">
+
 ```python
 import random
 from emerge import Model, Turtle, run
@@ -94,6 +96,22 @@ any point).
 World settings are constructor arguments: `max_x`, `max_y` (the world spans
 `-max_x..max_x` patches) and `patch_size` (pixels). For world-level behavior, subclass
 `Model` and override `setup()` or `go()`, setting the same names as class attributes.
+
+## Examples
+
+Run any of these with `uv run examples/<name>.py`.
+
+| Example | What it shows |
+| --- | --- |
+| [`wander.py`](examples/wander.py) | Turtles moving, turning, and changing color |
+| [`circles.py`](examples/circles.py) | Turtle `setup()`, and a model stopping itself |
+| [`grazing.py`](examples/grazing.py) | Patches with state, and turtles changing the patch underfoot |
+| [`life.py`](examples/life.py) | Patches only: Conway's Game of Life with a custom `go()` |
+| [`cat_and_mouse.py`](examples/cat_and_mouse.py) | `face`, `distance`, and `scale_color` |
+
+| Game of Life | Cat and mouse |
+| --- | --- |
+| <img src="docs/images/life.png" alt="Game of Life running in the emerge window" width="400"> | <img src="docs/images/cat_and_mouse.png" alt="Cats following a mouse's fading violet scent trail" width="400"> |
 
 ## License
 
