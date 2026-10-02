@@ -25,9 +25,10 @@ class Ground(Patch):
 
 
 class Mouse(Turtle):
+    shape = "🐁"
+
     def setup(self):
-        self.color = "white"
-        self.size = 0.8
+        self.size = 1.6
 
     def step(self):
         cats = [t for t in self.model.turtles if isinstance(t, Cat)]
@@ -42,9 +43,10 @@ class Mouse(Turtle):
 
 
 class Cat(Turtle):
+    shape = "🐈"
+
     def setup(self):
-        self.color = "orange"
-        self.size = 1.4
+        self.size = 2.4
         self.move_to(random.choice(self.model.patches))
 
     def step(self):
