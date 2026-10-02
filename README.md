@@ -134,9 +134,9 @@ Run any of these with `uv run examples/<name>.py`.
 | [`cat_and_mouse.py`](examples/cat_and_mouse.py) | `face`, `distance`, and `scale_color` |
 | [`attractor.py`](examples/attractor.py) | Turtles with their own state (velocity) orbiting an emoji sun and spiraling in |
 
-| Game of Life | Cat and mouse |
-| --- | --- |
-| <img src="docs/images/life.png" alt="Game of Life running in the emerge window" width="400"> | <img src="docs/images/cat_and_mouse.png" alt="Cats following a mouse's fading violet scent trail" width="400"> |
+| Game of Life | Cat and mouse | Attractor |
+| --- | --- | --- |
+| <img src="docs/images/life.png" alt="Game of Life running in the emerge window" width="270"> | <img src="docs/images/cat_and_mouse.png" alt="Cats following a mouse's fading violet scent trail" width="270"> | <img src="docs/images/attractor.png" alt="Particles orbiting an emoji sun, leaving blue trails" width="270"> |
 
 ## Development
 
