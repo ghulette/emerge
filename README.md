@@ -26,6 +26,27 @@ uv run examples/wander.py
 `run` opens a window with **Setup**, **Go** (toggle), and **Step** buttons, a speed
 slider, and a tick counter. Keyboard shortcuts: `s` = Setup, `g`/space = Go, `t` = Step.
 
+## Command line
+
+`run()` gives every model script a command line (`--help` shows the script's docstring too):
+
+```sh
+uv run examples/wolf_sheep.py --go --speed 60        # start running at 60 ticks/sec
+uv run examples/wolf_sheep.py --ticks 500            # stop at tick 500 (Go continues)
+uv run examples/wolf_sheep.py --headless --ticks 2000 --seed 1 --csv runs/ws.csv
+```
+
+| Option | |
+| --- | --- |
+| `--go` | start running right away |
+| `--speed N` | ticks per second (1 to ~300) |
+| `--ticks N` | stop after N ticks |
+| `--seed N` | random seed, for reproducible runs |
+| `--headless` | no window: run to `--ticks` and print the final metrics |
+| `--csv PATH` | write the metrics history to a CSV file when the run ends |
+
+If your script parses its own arguments, call `run(model, args=[])` to skip these.
+
 ## Turtles
 
 Subclass `Turtle` and override:

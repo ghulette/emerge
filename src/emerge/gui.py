@@ -61,6 +61,17 @@ class Button:
         self.primary = primary
 
 
+# The speed slider maps 0..1 logarithmically onto this many ticks per second.
+MIN_TICKS_PER_SECOND = 1.0
+MAX_TICKS_PER_SECOND = 10**2.5
+
+
+def slider_for(ticks_per_second: float) -> float:
+    """The speed slider position (0..1) for a rate, clamped to its range."""
+    tps = min(MAX_TICKS_PER_SECOND, max(MIN_TICKS_PER_SECOND, ticks_per_second))
+    return math.log10(tps) / math.log10(MAX_TICKS_PER_SECOND)
+
+
 class App:
     def __init__(self, model: Model, title: str):
         self.model = model
@@ -128,6 +139,8 @@ class App:
             x -= GAP
 
         self.speed = 0.5  # 0..1, see steps_per_second
+        # Stop running when the model reaches this tick (once), if set.
+        self.stop_at: int | None = None
         self.dragging_slider = False
         self.mouse = (-1, -1)
         self.pressed: Button | None = None
@@ -153,11 +166,14 @@ class App:
     # --- Running ----------------------------------------------------------
 
     def steps_per_second(self) -> float:
-        # Logarithmic: 1 tick/sec at the left, ~300 at the right.
-        return 10 ** (self.speed * 2.5)
+        return MAX_TICKS_PER_SECOND**self.speed
 
-    def run(self) -> None:
+    def run(self, go: bool = False) -> None:
+        """Set up the model and run the window until it's closed. If `go`,
+        start running right away.
+        """
         self.model.do_setup()
+        self.running = go
         while True:
             dt = self.clock.tick(FPS) / 1000
             for event in pygame.event.get():
@@ -180,6 +196,10 @@ class App:
                 if not self.model.step():
                     self.running = False
                     self.stopped_by_model = True
+                elif self.stop_at is not None and self.model.ticks >= self.stop_at:
+                    self.running = False
+                    self.stopped_by_model = True
+                    self.stop_at = None
 
         now = time.perf_counter()
         if now - self.rate_time >= 0.5:
@@ -453,11 +473,7 @@ class App:
         self.screen.blit(surf, surf.get_rect(center=box.center))
 
 
-def run(model: Model, title: str | None = None) -> None:
-    """Open a window for `model` and run it until the window is closed."""
-    if title is None:
-        if type(model) is Model and model.breeds:
-            title = ", ".join(cls.__name__ for cls in model.breeds)
-        else:
-            title = type(model).__name__
-    App(model, title).run()
+def default_title(model: Model) -> str:
+    if type(model) is Model and model.breeds:
+        return ", ".join(cls.__name__ for cls in model.breeds)
+    return type(model).__name__

@@ -7,6 +7,7 @@ subclassing `Turtle` / `Patch` (and optionally `Model`), and `run(model)` opens 
 
 - `uv run pytest`: run the tests (headless; `tests/conftest.py` sets `SDL_VIDEODRIVER=dummy`)
 - `uv run examples/<name>.py`: run an example in a window
+- `uv run examples/<name>.py --headless --ticks 500`: run without a window (see `--help`)
 
 To look at the GUI without a display, construct `emerge.gui.App`, call `app.draw()`, and
 save `app.screen` with `pygame.image.save`. Under the dummy driver the pixel ratio is 1x;
