@@ -105,6 +105,28 @@ class Turtle:
         """Jump to the location of a turtle or the center of a patch."""
         self.x, self.y = target.x, target.y
 
+    def distance(self, target: "Turtle | Patch") -> float:
+        """Distance to a turtle or patch center, the short way around the world."""
+        dx, dy = self.model.offset(self.x, self.y, target.x, target.y)
+        return math.hypot(dx, dy)
+
+    def towards(self, target: "Turtle | Patch") -> float:
+        """The heading that would point at a turtle or patch center, the short
+        way around the world. Raises ValueError if the target is right here.
+        """
+        dx, dy = self.model.offset(self.x, self.y, target.x, target.y)
+        if dx == 0 and dy == 0:
+            raise ValueError(f"{self!r} is already at {target!r}; no heading towards it")
+        return math.degrees(math.atan2(dx, dy)) % 360
+
+    def face(self, target: "Turtle | Patch") -> None:
+        """Turn to point at a turtle or patch center. Does nothing if the
+        target is right here.
+        """
+        dx, dy = self.model.offset(self.x, self.y, target.x, target.y)
+        if dx or dy:
+            self.heading = math.degrees(math.atan2(dx, dy))
+
     def __repr__(self) -> str:
         return f"<{type(self).__name__} x={self.x:.2f} y={self.y:.2f} heading={self._heading:.1f}>"
 
@@ -263,6 +285,14 @@ class Model:
         x = (x + self.max_x + 0.5) % self.width - self.max_x - 0.5
         y = (y + self.max_y + 0.5) % self.height - self.max_y - 0.5
         return x, y
+
+    def offset(self, x1: float, y1: float, x2: float, y2: float) -> tuple[float, float]:
+        """The (dx, dy) from point 1 to point 2, taking the shorter way around
+        the world's edges.
+        """
+        dx = (x2 - x1 + self.width / 2) % self.width - self.width / 2
+        dy = (y2 - y1 + self.height / 2) % self.height - self.height / 2
+        return dx, dy
 
     def patch_at(self, x: float, y: float) -> Patch:
         """The patch containing the point (x, y), wrapping around the edges."""

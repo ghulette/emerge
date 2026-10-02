@@ -40,13 +40,20 @@ Don't override `__init__`. Each turtle can reach the world through `self.model`
 - `right(deg)` / `rt`, `left(deg)` / `lt`
 - `move_to(turtle_or_patch)`
 - `patch` (the patch underfoot), `patch_ahead(d)`
+- `face(target)`: turn toward a turtle or patch
+- `towards(target)`, `distance(target)`: heading to and distance from a turtle or patch
 - `x`, `y`, `heading`, `color`, `size` attributes
 
 Coordinates follow NetLogo: the origin is at the center, y points up, heading 0 is north,
-and headings increase clockwise. The world wraps at its edges.
+and headings increase clockwise. The world wraps at its edges, and `face`, `towards`, and
+`distance` take the shorter way around.
 
 Colors are NetLogo's base color names (`"red"`, `"sky"`, `"lime"`, ... see `emerge.colors`)
 or `(r, g, b)` tuples.
+
+`scale_color(color, value, low, high)` works like NetLogo's `scale-color`: it returns a
+shade of `color` running from black at `low`, through the color itself, to white at
+`high`. Swap `low` and `high` to reverse it. See `examples/cat_and_mouse.py`.
 
 ## Patches
 
