@@ -1,4 +1,8 @@
-"""Cows wander a field, eating grass as they go. Eaten grass slowly regrows."""
+"""Cows wander a field, eating grass as they go. Eaten grass slowly regrows.
+
+The chart tracks how much of the field is grass; it settles where eating and
+regrowth balance out.
+"""
 
 import random
 
@@ -34,5 +38,18 @@ class Cow(Turtle):
             grass.color = "brown"
 
 
+def grass_percent(model):
+    return 100 * sum(p.grown for p in model.patches) / len(model.patches)
+
+
 if __name__ == "__main__":
-    run(Model(breeds={Cow: 30}, patch_class=Grass, max_x=30, max_y=20, patch_size=10))
+    run(
+        Model(
+            breeds={Cow: 30},
+            patch_class=Grass,
+            max_x=30,
+            max_y=20,
+            patch_size=10,
+            metrics={"grass %": grass_percent},
+        )
+    )

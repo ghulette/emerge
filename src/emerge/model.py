@@ -8,6 +8,7 @@ at its edges.
 
 import math
 import random
+from collections.abc import Callable
 
 from . import colors
 from .colors import Color
@@ -233,6 +234,12 @@ class Model:
 
     Most models only need Turtle and Patch subclasses. Subclass Model and
     override `setup` or `go` for world-level behavior.
+
+    Metrics are numbers recorded after Setup and after every tick, into
+    `history`, and charted live by the GUI. Pass `metrics`, a dict of names to
+    functions of the model, or override the `metrics` method:
+
+        Model(breeds={Cow: 30}, metrics={"cows": lambda m: len(m.turtles)})
     """
 
     breeds: dict[type[Turtle], int] = {}
@@ -248,6 +255,7 @@ class Model:
         max_x: int | None = None,
         max_y: int | None = None,
         patch_size: int | None = None,
+        metrics: dict[str, Callable[["Model"], float]] | None = None,
     ):
         if breeds is not None:
             self.breeds = breeds
@@ -263,6 +271,8 @@ class Model:
         self.patches: list[Patch] = []
         self.ticks = 0
         self._stopped = False
+        self._metric_fns = metrics or {}
+        self.history: dict[str, list[float | None]] = {"tick": []}
 
     # --- Override these -------------------------------------------------
 
@@ -287,6 +297,12 @@ class Model:
             random.shuffle(order)
             for p in order:
                 p.step()
+
+    def metrics(self) -> dict[str, float]:
+        """The values to record this tick, by name. By default, evaluates the
+        `metrics` functions passed to the constructor.
+        """
+        return {name: fn(self) for name, fn in self._metric_fns.items()}
 
     # --- World ----------------------------------------------------------
 
@@ -360,7 +376,9 @@ class Model:
 
     def do_setup(self) -> None:
         self.clear()
+        self.history = {"tick": []}
         self.setup()
+        self.record()
 
     def step(self) -> bool:
         """Run one tick. Returns False if the model asked to stop."""
@@ -369,4 +387,34 @@ class Model:
         if self._stopped:
             return False
         self.ticks += 1
+        self.record()
         return True
+
+    def simulate(self, ticks: int) -> dict[str, list[float | None]]:
+        """Set up and run for up to `ticks` ticks without a window, stopping
+        early if the model stops itself. Returns `history`.
+        """
+        self.do_setup()
+        for _ in range(ticks):
+            if not self.step():
+                break
+        return self.history
+
+    @property
+    def has_metrics(self) -> bool:
+        return bool(self._metric_fns) or type(self).metrics is not Model.metrics
+
+    def record(self) -> None:
+        """Append the current tick and metrics to `history`. A metric missing
+        from some ticks is recorded as None there, so every column in
+        `history` stays the same length (e.g. for `pandas.DataFrame(history)`).
+        """
+        values = self.metrics()
+        n = len(self.history["tick"])
+        for name in values:
+            if name not in self.history:
+                self.history[name] = [None] * n
+        self.history["tick"].append(self.ticks)
+        for name, column in self.history.items():
+            if name != "tick":
+                column.append(values.get(name))

@@ -121,6 +121,32 @@ World settings are constructor arguments: `max_x`, `max_y` (the world spans
 `-max_x..max_x` patches) and `patch_size` (pixels). For world-level behavior, subclass
 `Model` and override `setup()` or `go()`, setting the same names as class attributes.
 
+## Metrics and charts
+
+Give a model `metrics`, a dict of names to functions of the model, and emerge records
+them after Setup and after every tick. The window charts each one live beside the world:
+
+```python
+def grass_percent(model):
+    return 100 * sum(p.grown for p in model.patches) / len(model.patches)
+
+run(Model(breeds={Cow: 30}, patch_class=Grass, metrics={"grass %": grass_percent}))
+```
+
+(Or subclass `Model` and override `metrics()` to return a dict.)
+
+The values build up in `model.history`, a dict of equal-length lists with a `"tick"`
+column, so it drops straight into pandas. `model.simulate(ticks)` sets up and runs a model
+without a window and returns the history, which is handy for notebooks and parameter sweeps:
+
+```python
+import pandas as pd
+
+df = pd.DataFrame(Model(breeds={Cow: 30}, patch_class=Grass,
+                        metrics={"grass %": grass_percent}).simulate(2000))
+df.plot(x="tick", y="grass %")
+```
+
 ## Examples
 
 Run any of these with `uv run examples/<name>.py`.
@@ -129,10 +155,10 @@ Run any of these with `uv run examples/<name>.py`.
 | --- | --- |
 | [`wander.py`](examples/wander.py) | Turtles moving, turning, and changing color |
 | [`circles.py`](examples/circles.py) | Turtle `setup()`, and a model stopping itself |
-| [`grazing.py`](examples/grazing.py) | Patches with state, turtles changing the patch underfoot, and emoji shapes |
+| [`grazing.py`](examples/grazing.py) | Patches with state, turtles changing the patch underfoot, emoji shapes, and a live chart |
 | [`life.py`](examples/life.py) | Patches only: Conway's Game of Life with a custom `go()` |
 | [`cat_and_mouse.py`](examples/cat_and_mouse.py) | `face`, `distance`, and `scale_color` |
-| [`attractor.py`](examples/attractor.py) | Turtles with their own state (velocity) orbiting an emoji sun and spiraling in |
+| [`attractor.py`](examples/attractor.py) | Turtles with their own state (velocity) orbiting an emoji sun and spiraling in, with live charts |
 
 | Game of Life | Cat and mouse | Attractor |
 | --- | --- | --- |

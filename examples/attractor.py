@@ -77,5 +77,29 @@ class Particle(Turtle):
         # Yellow when slow, whitening as they speed up.
         self.color = scale_color("yellow", math.hypot(self.vx, self.vy), -2.5, 2.5)
 
+def particles(model):
+    return [t for t in model.turtles if isinstance(t, Particle)]
+
+
+def mean_distance(model):
+    sun = next(t for t in model.turtles if isinstance(t, Sun))
+    ps = particles(model)
+    return sum(p.distance(sun) for p in ps) / len(ps)
+
+
+def mean_speed(model):
+    ps = particles(model)
+    return sum(math.hypot(p.vx, p.vy) for p in ps) / len(ps)
+
+
 if __name__ == "__main__":
-    run(Model(breeds={Sun: 1, Particle: 150}, patch_class=Space, max_x=40, max_y=40, patch_size=8))
+    run(
+        Model(
+            breeds={Sun: 1, Particle: 150},
+            patch_class=Space,
+            max_x=40,
+            max_y=40,
+            patch_size=8,
+            metrics={"mean distance from sun": mean_distance, "mean speed": mean_speed},
+        )
+    )

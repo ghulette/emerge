@@ -10,28 +10,27 @@ import time
 import pygame
 import pygame.gfxdraw
 
+from .charts import PANEL_WIDTH, ChartPanel
 from .emoji import EmojiRenderer
 from .model import Model, Turtle
-
-# --- Theme ----------------------------------------------------------------
-
-BG = (13, 14, 18)
-SURFACE = (22, 24, 30)
-BORDER = (40, 43, 53)
-BUTTON = (34, 37, 46)
-BUTTON_HOVER = (45, 49, 60)
-BUTTON_PRESSED = (28, 30, 38)
-TEXT = (232, 234, 240)
-TEXT_DIM = (130, 136, 152)
-ACCENT = (99, 102, 241)
-ACCENT_HOVER = (124, 128, 255)
-ACCENT_PRESSED = (79, 82, 210)
-RUNNING = (52, 211, 153)
-STOPPED = (251, 191, 36)
-TOOLTIP = (50, 54, 66)
-
-UI_FONTS = "helveticaneue,avenirnext,segoeui,ubuntu,dejavusans,arial"
-MONO_FONTS = "menlo,sfmono,consolas,dejavusansmono,couriernew"
+from .theme import (
+    BG,
+    SURFACE,
+    BORDER,
+    BUTTON,
+    BUTTON_HOVER,
+    BUTTON_PRESSED,
+    TEXT,
+    TEXT_DIM,
+    ACCENT,
+    ACCENT_HOVER,
+    ACCENT_PRESSED,
+    RUNNING,
+    STOPPED,
+    TOOLTIP,
+    UI_FONTS,
+    MONO_FONTS,
+)
 
 # --- Layout (logical points) ----------------------------------------------
 
@@ -78,7 +77,9 @@ class App:
         ps = model.patch_size
         self.view_w = model.width * ps
         self.view_h = model.height * ps
-        win_w = max(self.view_w + 2 * MARGIN, MARGIN + title_w + 32 + controls_w + MARGIN)
+        # Content is the world view, plus the chart panel if there are metrics.
+        content_w = self.view_w + (MARGIN + PANEL_WIDTH if model.has_metrics else 0)
+        win_w = max(content_w + 2 * MARGIN, MARGIN + title_w + 32 + controls_w + MARGIN)
         win_h = HEADER_HEIGHT + MARGIN + self.view_h + MARGIN + FOOTER_HEIGHT
         self.win_w, self.win_h = win_w, win_h
 
@@ -90,13 +91,17 @@ class App:
         self.font_bold = pygame.font.SysFont(UI_FONTS, self.px(13), bold=True)
         self.font_title = pygame.font.SysFont(UI_FONTS, self.px(17), bold=True)
         self.font_mono = pygame.font.SysFont(MONO_FONTS, self.px(12))
+        self.font_small = pygame.font.SysFont(MONO_FONTS, self.px(10))
         self.clock = pygame.time.Clock()
         self.emoji = EmojiRenderer()
 
         # World view, drawn at full pixel resolution.
-        self.view_rect = pygame.Rect(
-            (win_w - self.view_w) // 2, HEADER_HEIGHT + MARGIN, self.view_w, self.view_h
-        )
+        left = (win_w - content_w) // 2
+        self.view_rect = pygame.Rect(left, HEADER_HEIGHT + MARGIN, self.view_w, self.view_h)
+        self.charts = None
+        if model.has_metrics:
+            panel = pygame.Rect(self.view_rect.right + MARGIN, self.view_rect.top, PANEL_WIDTH, self.view_h)
+            self.charts = ChartPanel(self, panel)
         view_px = self.px_rect(self.view_rect).size
         self.view = pygame.Surface(view_px)
         # One pixel per patch, scaled up to the view when drawn.
@@ -255,6 +260,8 @@ class App:
     def draw(self) -> None:
         self.screen.fill(BG)
         self.draw_view()
+        if self.charts is not None:
+            self.charts.draw(self.screen)
         self.draw_header()
         self.draw_footer()
         self.draw_tooltip()
