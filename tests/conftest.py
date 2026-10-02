@@ -16,6 +16,7 @@ EXAMPLES = Path(__file__).parent.parent / "examples"
 def load_example(name: str):
     """Import examples/<name>.py as a module (examples aren't a package)."""
     spec = importlib.util.spec_from_file_location(f"examples.{name}", EXAMPLES / f"{name}.py")
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

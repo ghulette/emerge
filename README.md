@@ -131,6 +131,11 @@ class Cow(Turtle):
 
 See `examples/grazing.py` for the full model.
 
+**Type checking.** For your patch's own attributes to type-check through `self.patch`,
+parameterize the turtle class with the patch class: `class Cow(Turtle[Grass])`. Neighbor
+patches are typed as the same class automatically. A `Model` subclass can do the same:
+`class Life(Model[Cell])`.
+
 ## Model
 
 `Model(breeds={Wolf: 10, Sheep: 100}, patch_class=Grass)` fills the world with
@@ -203,6 +208,7 @@ Run any of these with `uv run examples/<name>.py`.
 
 ```sh
 uv run pytest
+uv run pyright
 ```
 
 ## License

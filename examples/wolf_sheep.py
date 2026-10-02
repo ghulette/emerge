@@ -39,7 +39,7 @@ class Grass(Patch):
         self.color = "brown"
 
 
-class Animal(Turtle):
+class Animal(Turtle[Grass]):
     gain_from_food = 0
     reproduce_chance = 0.0
 

@@ -6,6 +6,7 @@ subclassing `Turtle` / `Patch` (and optionally `Model`), and `run(model)` opens 
 ## Commands
 
 - `uv run pytest`: run the tests (headless; `tests/conftest.py` sets `SDL_VIDEODRIVER=dummy`)
+- `uv run pyright`: type-check `src`, `examples`, and `tests`; keep it at zero errors
 - `uv run examples/<name>.py`: run an example in a window
 - `uv run examples/<name>.py --headless --ticks 500`: run without a window (see `--help`)
 
@@ -19,6 +20,8 @@ real Retina windows render at 2x.
   The origin is at the center, y points up, heading 0 is north and increases clockwise, and
   the world wraps; anything measuring between points takes the short way around
   (`Model.offset`).
+- Examples should type-check: turtles that use custom patch attributes subclass
+  `Turtle[MyPatch]`, and Model subclasses with custom patches subclass `Model[MyPatch]`.
 - Users never write `__init__`. Behavior goes in `setup()` / `step()` hooks; the model
   constructs agents and calls `setup()` itself.
 - Keep per-patch work cheap: worlds can have tens of thousands of patches. That's why

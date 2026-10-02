@@ -40,7 +40,7 @@ class Sun(Turtle):
         self.size = 3
 
 
-class Particle(Turtle):
+class Particle(Turtle[Space]):
     def setup(self):
         self.size = 1.3
         self.move_to(random.choice(self.model.patches))

@@ -7,6 +7,8 @@ or an (r, g, b) tuple with components in 0-255.
 import random as _random
 
 Color = tuple[int, int, int]
+# Anything accepted as a color: a name, or an (r, g, b) tuple.
+ColorLike = str | tuple[float, float, float]
 
 BASE_COLORS: dict[str, Color] = {
     "gray": (141, 141, 141),
@@ -33,7 +35,7 @@ NAMED_COLORS: dict[str, Color] = {
 }
 
 
-def to_rgb(color: str | Color) -> Color:
+def to_rgb(color: ColorLike) -> Color:
     """Normalize a color name or RGB tuple to an RGB tuple."""
     if isinstance(color, str):
         try:
@@ -49,7 +51,7 @@ def random() -> Color:
     return _random.choice(list(BASE_COLORS.values()))
 
 
-def scale_color(color: str | Color, value: float, low: float, high: float) -> Color:
+def scale_color(color: ColorLike, value: float, low: float, high: float) -> Color:
     """A shade of `color` for where `value` falls between `low` and `high`.
 
     Like NetLogo's scale-color: `low` maps to black, the midpoint to `color`

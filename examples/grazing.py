@@ -22,7 +22,7 @@ class Grass(Patch):
             self.color = "green"
 
 
-class Cow(Turtle):
+class Cow(Turtle[Grass]):
     shape = "🐄"
 
     def setup(self):

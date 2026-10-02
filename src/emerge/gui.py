@@ -6,6 +6,7 @@ drawing, so everything stays sharp on high-DPI (Retina) screens.
 
 import math
 import time
+from typing import Any
 
 import pygame
 import pygame.gfxdraw
@@ -73,7 +74,7 @@ def slider_for(ticks_per_second: float) -> float:
 
 
 class App:
-    def __init__(self, model: Model, title: str):
+    def __init__(self, model: Model[Any], title: str):
         self.model = model
         self.title = title
         pygame.init()
@@ -290,7 +291,8 @@ class App:
         m = self.model
         with pygame.PixelArray(self.patch_pixels) as pixels:
             for p in m.patches:
-                pixels[p.x + m.max_x, m.max_y - p.y] = p.color
+                # pygame's stubs omit PixelArray item assignment, which works.
+                pixels[p.x + m.max_x, m.max_y - p.y] = p.color  # pyright: ignore[reportIndexIssue]
         pygame.transform.scale(self.patch_pixels, self.view.get_size(), self.view)
         for t in m.turtles:
             self.draw_turtle(t)
@@ -473,7 +475,7 @@ class App:
         self.screen.blit(surf, surf.get_rect(center=box.center))
 
 
-def default_title(model: Model) -> str:
+def default_title(model: Model[Any]) -> str:
     if type(model) is Model and model.breeds:
         return ", ".join(cls.__name__ for cls in model.breeds)
     return type(model).__name__

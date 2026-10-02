@@ -6,6 +6,7 @@ import random
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from .charts import format_value
 from .model import Model
@@ -44,7 +45,7 @@ def write_csv(history: dict[str, list], path: Path) -> None:
         writer.writerows(zip(*history.values()))
 
 
-def run(model: Model, title: str | None = None, args: Sequence[str] | None = None) -> None:
+def run(model: Model[Any], title: str | None = None, args: Sequence[str] | None = None) -> None:
     """Run `model`, by default in a window, configured by command-line
     options (see `--help`). `args` defaults to `sys.argv[1:]`; pass `[]` to
     ignore the command line.
@@ -60,6 +61,7 @@ def run(model: Model, title: str | None = None, args: Sequence[str] | None = Non
         random.seed(options.seed)
 
     if options.headless:
+        assert options.ticks is not None
         history = model.simulate(options.ticks)
         print(f"ran {model.ticks:,} ticks")
         for name, column in history.items():

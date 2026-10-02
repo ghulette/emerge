@@ -24,7 +24,7 @@ class Ground(Patch):
         self.color = scale_color("violet", self.scent, 0, 1.3)
 
 
-class Mouse(Turtle):
+class Mouse(Turtle[Ground]):
     shape = "🐁"
 
     def setup(self):
@@ -42,7 +42,7 @@ class Mouse(Turtle):
         self.patch.scent = 1.0
 
 
-class Cat(Turtle):
+class Cat(Turtle[Ground]):
     shape = "🐈"
 
     def setup(self):

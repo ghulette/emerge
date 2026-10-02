@@ -33,7 +33,7 @@ class Cell(Patch):
         return True
 
 
-class Life(Model):
+class Life(Model[Cell]):
     patch_class = Cell
     max_x = 50
     max_y = 40

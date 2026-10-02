@@ -9,14 +9,21 @@ at its edges.
 import copy
 import math
 import random
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from typing import Any, Self, cast
 
 from . import colors
-from .colors import Color
+from .colors import Color, ColorLike
+
+# A metric's value: a number, or several named numbers charted together.
+type MetricValue = float | Mapping[str, float]
 
 
-class Turtle:
+class Turtle[P: Patch = Patch]:
     """An agent. Subclass it and override `setup` and `step`.
+
+    To use your own Patch subclass's attributes through `self.patch` with
+    type checking, parameterize the class: `class Cow(Turtle[Grass])`.
 
     Don't override `__init__`; do per-turtle initialization in `setup`, which
     runs right after the model creates the turtle (with a random heading and
@@ -43,11 +50,11 @@ class Turtle:
 
     def __init__(
         self,
-        model: "Model",
+        model: "Model[P]",
         x: float = 0.0,
         y: float = 0.0,
         heading: float = 0.0,
-        color: str | Color = "red",
+        color: ColorLike = "red",
         size: float = 1.0,
     ):
         self.model = model
@@ -55,7 +62,7 @@ class Turtle:
         self._y = y
         # The patch this turtle is indexed under (see Patch.turtles), or None
         # if it isn't in the world yet.
-        self._patch: Patch | None = None
+        self._patch: P | None = None
         self.heading = heading
         self.color = color
         self.size = size
@@ -114,7 +121,7 @@ class Turtle:
         return self._color
 
     @color.setter
-    def color(self, value: str | Color) -> None:
+    def color(self, value: ColorLike) -> None:
         self._color = colors.to_rgb(value)
 
     def forward(self, distance: float) -> None:
@@ -145,11 +152,11 @@ class Turtle:
     lt = left
 
     @property
-    def patch(self) -> "Patch":
+    def patch(self) -> P:
         """The patch this turtle is standing on."""
         return self._patch or self.model.patch_at(self._x, self._y)
 
-    def patch_ahead(self, distance: float) -> "Patch":
+    def patch_ahead(self, distance: float) -> P:
         """The patch `distance` patches ahead along the current heading."""
         rad = math.radians(self._heading)
         return self.model.patch_at(
@@ -157,7 +164,7 @@ class Turtle:
             self.y + distance * math.cos(rad),
         )
 
-    def move_to(self, target: "Turtle | Patch") -> None:
+    def move_to(self, target: "Turtle[Any] | Patch") -> None:
         """Jump to the location of a turtle or the center of a patch."""
         self._set_position(target.x, target.y)
 
@@ -174,7 +181,7 @@ class Turtle:
                 del self._patch._turtles[self]
                 self._patch = None
 
-    def hatch[T: Turtle](self: T, n: int = 1) -> list[T]:
+    def hatch[T: Turtle[Any]](self: T, n: int = 1) -> list[T]:
         """Create `n` copies of this turtle, like NetLogo's hatch: same class,
         position, heading, color, and other attributes (shallow-copied). They
         don't run `setup`, and start stepping next tick. Returns the new
@@ -187,12 +194,12 @@ class Turtle:
         self.model.turtles.extend(children)
         return children
 
-    def distance(self, target: "Turtle | Patch") -> float:
+    def distance(self, target: "Turtle[Any] | Patch") -> float:
         """Distance to a turtle or patch center, the short way around the world."""
         dx, dy = self.model.offset(self.x, self.y, target.x, target.y)
         return math.hypot(dx, dy)
 
-    def towards(self, target: "Turtle | Patch") -> float:
+    def towards(self, target: "Turtle[Any] | Patch") -> float:
         """The heading that would point at a turtle or patch center, the short
         way around the world. Raises ValueError if the target is right here.
         """
@@ -201,7 +208,7 @@ class Turtle:
             raise ValueError(f"{self!r} is already at {target!r}; no heading towards it")
         return math.degrees(math.atan2(dx, dy)) % 360
 
-    def face(self, target: "Turtle | Patch") -> None:
+    def face(self, target: "Turtle[Any] | Patch") -> None:
         """Turn to point at a turtle or patch center. Does nothing if the
         target is right here.
         """
@@ -220,18 +227,21 @@ class Patch:
     Patches have integer coordinates `x` and `y`, and a patch covers the
     points within half a unit of its center. Don't override `__init__`; do
     per-patch initialization in `setup`.
+
+    Neighboring patches are typed as the same class, so a subclass's own
+    attributes type-check on them.
     """
 
-    def __init__(self, model: "Model", x: int, y: int):
-        self.model = model
+    def __init__(self, model: "Model[Any]", x: int, y: int):
+        self.model: Model[Self] = model
         self.x = x
         self.y = y
         self.color = "black"
         # Turtles on this patch, kept up to date as they move. A dict, not a
         # set, so iteration order is deterministic.
-        self._turtles: dict[Turtle, None] = {}
-        self._neighbors: list[Patch] | None = None
-        self._neighbors4: list[Patch] | None = None
+        self._turtles: dict[Turtle[Any], None] = {}
+        self._neighbors: list[Self] | None = None
+        self._neighbors4: list[Self] | None = None
 
     # --- Override these -------------------------------------------------
 
@@ -248,11 +258,11 @@ class Patch:
         return self._color
 
     @color.setter
-    def color(self, value: str | Color) -> None:
+    def color(self, value: ColorLike) -> None:
         self._color = colors.to_rgb(value)
 
     @property
-    def neighbors(self) -> list["Patch"]:
+    def neighbors(self) -> list[Self]:
         """The 8 surrounding patches."""
         if self._neighbors is None:
             self._neighbors = [
@@ -264,7 +274,7 @@ class Patch:
         return self._neighbors
 
     @property
-    def neighbors4(self) -> list["Patch"]:
+    def neighbors4(self) -> list[Self]:
         """The 4 patches sharing an edge with this one (N, E, S, W)."""
         if self._neighbors4 is None:
             self._neighbors4 = [
@@ -274,11 +284,11 @@ class Patch:
         return self._neighbors4
 
     @property
-    def turtles(self) -> list[Turtle]:
+    def turtles(self) -> list[Turtle[Any]]:
         """The turtles standing on this patch."""
         return list(self._turtles)
 
-    def patch_at(self, dx: int, dy: int) -> "Patch":
+    def patch_at(self, dx: int, dy: int) -> Self:
         """The patch offset by (dx, dy) from this one."""
         return self.model.patch_at(self.x + dx, self.y + dy)
 
@@ -286,7 +296,7 @@ class Patch:
         return f"<{type(self).__name__} x={self.x} y={self.y}>"
 
 
-class Model:
+class Model[P: Patch = Patch]:
     """A simulation world and the turtles in it.
 
     `breeds` maps Turtle subclasses to how many of each to create on setup,
@@ -311,9 +321,12 @@ class Model:
     together; each key becomes its own column in `history`:
 
         metrics={"population": lambda m: {"wolves": ..., "sheep": ...}}
+
+    A Model subclass with its own Patch class can say so for type checking:
+    `class Life(Model[Cell])`.
     """
 
-    breeds: dict[type[Turtle], int] = {}
+    breeds: Mapping[type[Turtle[Any]], int] = {}
     patch_class: type[Patch] = Patch
     max_x: int = 16
     max_y: int = 16
@@ -321,12 +334,12 @@ class Model:
 
     def __init__(
         self,
-        breeds: dict[type[Turtle], int] | None = None,
-        patch_class: type[Patch] | None = None,
+        breeds: Mapping[type[Turtle[Any]], int] | None = None,
+        patch_class: type[P] | None = None,
         max_x: int | None = None,
         max_y: int | None = None,
         patch_size: int | None = None,
-        metrics: dict[str, Callable[["Model"], float]] | None = None,
+        metrics: Mapping[str, Callable[[Self], MetricValue]] | None = None,
     ):
         if breeds is not None:
             self.breeds = breeds
@@ -338,11 +351,11 @@ class Model:
             self.patch_size = patch_size
         if patch_class is not None:
             self.patch_class = patch_class
-        self.turtles: list[Turtle] = []
-        self.patches: list[Patch] = []
+        self.turtles: list[Turtle[P]] = []
+        self.patches: list[P] = []
         self.ticks = 0
         self._stopped = False
-        self._metric_fns = metrics or {}
+        self._metric_fns: Mapping[str, Callable[[Self], MetricValue]] = metrics or {}
         self.history: dict[str, list[float | None]] = {"tick": []}
         # Chart name -> the history columns charted on it.
         self.metric_groups: dict[str, list[str]] = {}
@@ -372,7 +385,7 @@ class Model:
             for p in order:
                 p.step()
 
-    def metrics(self) -> dict[str, float | dict[str, float]]:
+    def metrics(self) -> Mapping[str, MetricValue]:
         """The values to record this tick, by name: numbers, or dicts of
         numbers to chart together. By default, evaluates the `metrics`
         functions passed to the constructor.
@@ -403,7 +416,7 @@ class Model:
         dy = (y2 - y1 + self.height / 2) % self.height - self.height / 2
         return dx, dy
 
-    def patch_at(self, x: float, y: float) -> Patch:
+    def patch_at(self, x: float, y: float) -> P:
         """The patch containing the point (x, y), wrapping around the edges."""
         x, y = self.wrap(x, y)
         col = math.floor(x + 0.5) + self.max_x
@@ -422,7 +435,7 @@ class Model:
         """
         self.turtles.clear()
         self.patches = [
-            self.patch_class(self, x, y)
+            cast(P, self.patch_class(self, x, y))
             for y in range(-self.max_y, self.max_y + 1)
             for x in range(-self.max_x, self.max_x + 1)
         ]
@@ -431,7 +444,7 @@ class Model:
         self.ticks = 0
         self._stopped = False
 
-    def create_turtles[T: Turtle](self, n: int, cls: type[T] = Turtle) -> list[T]:
+    def create_turtles[T: Turtle[Any]](self, n: int, cls: type[T] = Turtle) -> list[T]:
         """Create `n` turtles of class `cls` at the origin, with random
         headings and colors, then call `setup` on each.
         """
@@ -488,7 +501,7 @@ class Model:
         """
         values: dict[str, float] = {}
         for name, value in self.metrics().items():
-            series = value if isinstance(value, dict) else {name: value}
+            series = value if isinstance(value, Mapping) else {name: value}
             group = self.metric_groups.setdefault(name, [])
             for column, v in series.items():
                 if column not in group:

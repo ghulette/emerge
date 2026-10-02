@@ -262,6 +262,7 @@ def test_hatch_copies_parent_and_joins_next_tick():
     m = Model(breeds={Parent: 1}, max_x=3, max_y=3)
     m.do_setup()
     parent = m.turtles[0]
+    assert isinstance(parent, Parent)
     parent.x, parent.y, parent.heading, parent.color = 1.2, -0.8, 45, "pink"
     children = parent.hatch(2)
     assert len(children) == 2 and len(m.turtles) == 3
