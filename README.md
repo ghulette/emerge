@@ -2,7 +2,7 @@
 
 A small NetLogo-like agent-based modeling library, written (and used) in plain Python.
 
-<img src="docs/images/grazing.png" alt="Cows grazing a field of grass in the emerge window" width="640">
+<img src="docs/images/wolf_sheep.png" alt="Wolf-sheep predation model with emoji sheep and wolves and live population charts" width="720">
 
 ```python
 import random
