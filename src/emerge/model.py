@@ -88,38 +88,126 @@ class Turtle:
     rt = right
     lt = left
 
+    @property
+    def patch(self) -> "Patch":
+        """The patch this turtle is standing on."""
+        return self.model.patch_at(self.x, self.y)
+
+    def patch_ahead(self, distance: float) -> "Patch":
+        """The patch `distance` patches ahead along the current heading."""
+        rad = math.radians(self._heading)
+        return self.model.patch_at(
+            self.x + distance * math.sin(rad),
+            self.y + distance * math.cos(rad),
+        )
+
+    def move_to(self, target: "Turtle | Patch") -> None:
+        """Jump to the location of a turtle or the center of a patch."""
+        self.x, self.y = target.x, target.y
+
     def __repr__(self) -> str:
         return f"<{type(self).__name__} x={self.x:.2f} y={self.y:.2f} heading={self._heading:.1f}>"
+
+
+class Patch:
+    """One square of the world grid. Subclass it and override `setup` and
+    `step` to give patches state and behavior.
+
+    Patches have integer coordinates `x` and `y`, and a patch covers the
+    points within half a unit of its center. Don't override `__init__`; do
+    per-patch initialization in `setup`.
+    """
+
+    def __init__(self, model: "Model", x: int, y: int):
+        self.model = model
+        self.x = x
+        self.y = y
+        self.color = "black"
+        self._neighbors: list[Patch] | None = None
+        self._neighbors4: list[Patch] | None = None
+
+    # --- Override these -------------------------------------------------
+
+    def setup(self) -> None:
+        """Called once on Setup, before any turtles are created."""
+
+    def step(self) -> None:
+        """Called once per tick, after all turtles have stepped."""
+
+    # --- State ----------------------------------------------------------
+
+    @property
+    def color(self) -> Color:
+        return self._color
+
+    @color.setter
+    def color(self, value: str | Color) -> None:
+        self._color = colors.to_rgb(value)
+
+    @property
+    def neighbors(self) -> list["Patch"]:
+        """The 8 surrounding patches."""
+        if self._neighbors is None:
+            self._neighbors = [
+                self.model.patch_at(self.x + dx, self.y + dy)
+                for dy in (1, 0, -1)
+                for dx in (-1, 0, 1)
+                if dx or dy
+            ]
+        return self._neighbors
+
+    @property
+    def neighbors4(self) -> list["Patch"]:
+        """The 4 patches sharing an edge with this one (N, E, S, W)."""
+        if self._neighbors4 is None:
+            self._neighbors4 = [
+                self.model.patch_at(self.x + dx, self.y + dy)
+                for dx, dy in ((0, 1), (1, 0), (0, -1), (-1, 0))
+            ]
+        return self._neighbors4
+
+    @property
+    def turtles(self) -> list[Turtle]:
+        """The turtles standing on this patch."""
+        return [t for t in self.model.turtles if t.patch is self]
+
+    def patch_at(self, dx: int, dy: int) -> "Patch":
+        """The patch offset by (dx, dy) from this one."""
+        return self.model.patch_at(self.x + dx, self.y + dy)
+
+    def __repr__(self) -> str:
+        return f"<{type(self).__name__} x={self.x} y={self.y}>"
 
 
 class Model:
     """A simulation world and the turtles in it.
 
-    `breeds` maps Turtle subclasses to how many of each to create on setup:
+    `breeds` maps Turtle subclasses to how many of each to create on setup,
+    and `patch_class` is the Patch subclass that fills the world:
 
-        Model(breeds={Wolf: 10, Sheep: 100})
+        Model(breeds={Wolf: 10, Sheep: 100}, patch_class=Grass)
 
     Settings can be constructor arguments or, in a subclass, class attributes.
     The world spans patches -max_x..max_x horizontally and -max_y..max_y
     vertically, each drawn `patch_size` pixels wide.
 
-    Most models only need Turtle subclasses. Subclass Model and override
-    `setup` or `go` for world-level behavior.
+    Most models only need Turtle and Patch subclasses. Subclass Model and
+    override `setup` or `go` for world-level behavior.
     """
 
     breeds: dict[type[Turtle], int] = {}
+    patch_class: type[Patch] = Patch
     max_x: int = 16
     max_y: int = 16
     patch_size: int = 13
-    background: str | Color = "black"
 
     def __init__(
         self,
         breeds: dict[type[Turtle], int] | None = None,
+        patch_class: type[Patch] | None = None,
         max_x: int | None = None,
         max_y: int | None = None,
         patch_size: int | None = None,
-        background: str | Color | None = None,
     ):
         if breeds is not None:
             self.breeds = breeds
@@ -129,25 +217,36 @@ class Model:
             self.max_y = max_y
         if patch_size is not None:
             self.patch_size = patch_size
-        if background is not None:
-            self.background = background
+        if patch_class is not None:
+            self.patch_class = patch_class
         self.turtles: list[Turtle] = []
+        self.patches: list[Patch] = []
         self.ticks = 0
         self._stopped = False
 
     # --- Override these -------------------------------------------------
 
     def setup(self) -> None:
-        """Called on Setup, after the world is cleared. Creates the breeds."""
+        """Called on Setup, after the world is reset to fresh patches and no
+        turtles. Creates the breeds.
+        """
         for cls, n in self.breeds.items():
             self.create_turtles(n, cls)
 
     def go(self) -> None:
-        """Called once per tick. Steps every turtle, in random order."""
+        """Called once per tick. Steps every turtle, then every patch, each
+        in random order.
+        """
         order = self.turtles[:]
         random.shuffle(order)
         for t in order:
             t.step()
+        # Stepping thousands of patches is slow, so skip it if it's a no-op.
+        if self.patch_class.step is not Patch.step:
+            order = self.patches[:]
+            random.shuffle(order)
+            for p in order:
+                p.step()
 
     # --- World ----------------------------------------------------------
 
@@ -165,6 +264,13 @@ class Model:
         y = (y + self.max_y + 0.5) % self.height - self.max_y - 0.5
         return x, y
 
+    def patch_at(self, x: float, y: float) -> Patch:
+        """The patch containing the point (x, y), wrapping around the edges."""
+        x, y = self.wrap(x, y)
+        col = math.floor(x + 0.5) + self.max_x
+        row = math.floor(y + 0.5) + self.max_y
+        return self.patches[row * self.width + col]
+
     def random_x(self) -> float:
         return random.uniform(-self.max_x - 0.5, self.max_x + 0.5)
 
@@ -172,7 +278,17 @@ class Model:
         return random.uniform(-self.max_y - 0.5, self.max_y + 0.5)
 
     def clear(self) -> None:
+        """Remove all turtles, replace every patch with a fresh one, and set
+        up the new patches.
+        """
         self.turtles.clear()
+        self.patches = [
+            self.patch_class(self, x, y)
+            for y in range(-self.max_y, self.max_y + 1)
+            for x in range(-self.max_x, self.max_x + 1)
+        ]
+        for p in self.patches:
+            p.setup()
         self.ticks = 0
         self._stopped = False
 

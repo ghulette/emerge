@@ -4,7 +4,6 @@ import math
 
 import pygame
 
-from . import colors
 from .model import Model, Turtle
 
 TOOLBAR_HEIGHT = 44
@@ -81,6 +80,8 @@ class App:
         win_w = max(self.view_w, MIN_WINDOW_WIDTH)
         self.screen = pygame.display.set_mode((win_w, TOOLBAR_HEIGHT + self.view_h))
         self.view = pygame.Surface((self.view_w, self.view_h))
+        # One pixel per patch, scaled up to the view when drawn.
+        self.patch_pixels = pygame.Surface((model.width, model.height))
         self.view_pos = ((win_w - self.view_w) // 2, TOOLBAR_HEIGHT)
         self.font = pygame.font.SysFont(None, 20)
         self.clock = pygame.time.Clock()
@@ -163,9 +164,16 @@ class App:
             points.append(self.to_screen(t.x + lx * cos + ly * sin, t.y - lx * sin + ly * cos))
         pygame.draw.polygon(self.view, t.color, points)
 
+    def draw_patches(self) -> None:
+        m = self.model
+        with pygame.PixelArray(self.patch_pixels) as pixels:
+            for p in m.patches:
+                pixels[p.x + m.max_x, m.max_y - p.y] = p.color
+        pygame.transform.scale(self.patch_pixels, (self.view_w, self.view_h), self.view)
+
     def draw(self) -> None:
         self.screen.fill(TOOLBAR_BG)
-        self.view.fill(colors.to_rgb(self.model.background))
+        self.draw_patches()
         for t in self.model.turtles:
             self.draw_turtle(t)
         self.screen.blit(self.view, self.view_pos)

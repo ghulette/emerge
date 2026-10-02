@@ -2,6 +2,6 @@
 
 from . import colors
 from .gui import run
-from .model import Model, Turtle
+from .model import Model, Patch, Turtle
 
-__all__ = ["Model", "Turtle", "colors", "run"]
+__all__ = ["Model", "Patch", "Turtle", "colors", "run"]

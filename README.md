@@ -38,6 +38,8 @@ Don't override `__init__`. Each turtle can reach the world through `self.model`
 
 - `forward(d)` / `fd`, `back(d)` / `bk`
 - `right(deg)` / `rt`, `left(deg)` / `lt`
+- `move_to(turtle_or_patch)`
+- `patch` (the patch underfoot), `patch_ahead(d)`
 - `x`, `y`, `heading`, `color`, `size` attributes
 
 Coordinates follow NetLogo: the origin is at the center, y points up, heading 0 is north,
@@ -46,12 +48,42 @@ and headings increase clockwise. The world wraps at its edges.
 Colors are NetLogo's base color names (`"red"`, `"sky"`, `"lime"`, ... see `emerge.colors`)
 or `(r, g, b)` tuples.
 
+## Patches
+
+The world is a grid of patches with integer coordinates. To give them state and behavior,
+subclass `Patch` and override:
+
+- `setup()`: called once on Setup, before any turtles are created.
+- `step()`: called once per tick, after all the turtles have stepped.
+
+Patches have `x`, `y`, and `color` (default black), plus `neighbors` (8), `neighbors4`,
+`turtles` (the turtles standing on it), and `patch_at(dx, dy)`.
+
+```python
+class Grass(Patch):
+    def setup(self):
+        self.grown = True
+        self.color = "green"
+
+class Cow(Turtle):
+    def step(self):
+        self.forward(0.5)
+        if self.patch.grown:
+            self.patch.grown = False
+            self.patch.color = "brown"
+```
+
+See `examples/grazing.py` for the full model.
+
 ## Model
 
-`Model(breeds={Wolf: 10, Sheep: 100})` creates that many of each turtle class on Setup,
-then steps every turtle in random order each tick.
+`Model(breeds={Wolf: 10, Sheep: 100}, patch_class=Grass)` fills the world with
+`Grass` patches and creates that many of each turtle class on Setup. Each tick it steps
+every turtle, then every patch, each in random order.
+
+The model has `turtles`, `patches`, `ticks`, and `patch_at(x, y)` (the patch containing
+any point).
 
 World settings are constructor arguments: `max_x`, `max_y` (the world spans
-`-max_x..max_x` patches), `patch_size` (pixels), and `background`. For world-level
-behavior, subclass `Model` and override `setup()` or `go()`, setting the same names as
-class attributes.
+`-max_x..max_x` patches) and `patch_size` (pixels). For world-level behavior, subclass
+`Model` and override `setup()` or `go()`, setting the same names as class attributes.
