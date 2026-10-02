@@ -132,6 +132,7 @@ Run any of these with `uv run examples/<name>.py`.
 | [`grazing.py`](examples/grazing.py) | Patches with state, turtles changing the patch underfoot, and emoji shapes |
 | [`life.py`](examples/life.py) | Patches only: Conway's Game of Life with a custom `go()` |
 | [`cat_and_mouse.py`](examples/cat_and_mouse.py) | `face`, `distance`, and `scale_color` |
+| [`attractor.py`](examples/attractor.py) | Turtles with their own state (velocity) orbiting an emoji sun and spiraling in |
 
 | Game of Life | Cat and mouse |
 | --- | --- |

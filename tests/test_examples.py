@@ -14,6 +14,7 @@ def example_models():
     grazing = load_example("grazing")
     life = load_example("life")
     cat_and_mouse = load_example("cat_and_mouse")
+    attractor = load_example("attractor")
     return {
         "wander": Model(breeds={wander.Wanderer: 20}),
         "circles": Model(breeds={circles.Circler: 10}),
@@ -22,6 +23,10 @@ def example_models():
         "cat_and_mouse": Model(
             breeds={cat_and_mouse.Mouse: 1, cat_and_mouse.Cat: 3},
             patch_class=cat_and_mouse.Ground,
+        ),
+        "attractor": Model(
+            breeds={attractor.Sun: 1, attractor.Particle: 20},
+            patch_class=attractor.Space,
         ),
     }
 
