@@ -113,6 +113,12 @@ Run any of these with `uv run examples/<name>.py`.
 | --- | --- |
 | <img src="docs/images/life.png" alt="Game of Life running in the emerge window" width="400"> | <img src="docs/images/cat_and_mouse.png" alt="Cats following a mouse's fading violet scent trail" width="400"> |
 
+## Development
+
+```sh
+uv run pytest
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
