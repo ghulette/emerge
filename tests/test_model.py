@@ -1,4 +1,5 @@
 import math
+import random
 
 import pytest
 
@@ -219,3 +220,87 @@ def test_world_settings_as_class_attributes():
     assert (m.width, m.height, m.patch_size) == (11, 3, 4)
     assert len(m.patches) == 33
     assert math.isclose(m.wrap(5.6, 0)[0], -5.4)
+
+
+# --- die / hatch ------------------------------------------------------------
+
+
+def test_die_removes_turtle_from_model_and_patch(model):
+    t = turtle_at(model, 1, 1)
+    t.die()
+    assert t not in model.turtles
+    assert not t.alive
+    assert model.patch_at(1, 1).turtles == []
+    t.die()  # dying twice is harmless
+
+
+def test_turtle_killed_mid_tick_is_not_stepped():
+    stepped = []
+
+    class Hunter(Turtle):
+        def step(self):
+            stepped.append(self)
+            for other in self.model.turtles[:]:
+                if other is not self:
+                    other.die()
+
+    m = Model(breeds={Hunter: 5}, max_x=2, max_y=2)
+    m.do_setup()
+    m.step()
+    assert len(stepped) == 1 and len(m.turtles) == 1
+
+
+def test_hatch_copies_parent_and_joins_next_tick():
+    class Parent(Turtle):
+        def setup(self):
+            self.energy = 10
+            self.steps = 0
+
+        def step(self):
+            self.steps += 1
+
+    m = Model(breeds={Parent: 1}, max_x=3, max_y=3)
+    m.do_setup()
+    parent = m.turtles[0]
+    parent.x, parent.y, parent.heading, parent.color = 1.2, -0.8, 45, "pink"
+    children = parent.hatch(2)
+    assert len(children) == 2 and len(m.turtles) == 3
+    for child in children:
+        assert type(child) is Parent and child is not parent
+        assert (child.x, child.y, child.heading, child.color, child.energy) == (1.2, -0.8, 45, parent.color, 10)
+        assert child in m.patch_at(1, -1).turtles
+    children[0].energy = 3
+    assert parent.energy == 10
+
+
+def test_hatch_from_dying_parent_gives_live_children(model):
+    parent = turtle_at(model, 0, 0)
+    parent.die()
+    (child,) = parent.hatch()
+    assert child.alive and child in model.turtles and child in model.patch_at(0, 0).turtles
+
+
+def test_patch_index_stays_consistent():
+    random_ = random.Random(7)
+
+    class Busy(Turtle):
+        def step(self):
+            self.right(random_.uniform(-90, 90))
+            self.forward(random_.uniform(0, 2))
+            roll = random_.random()
+            if roll < 0.05:
+                self.die()
+            elif roll < 0.1:
+                self.hatch()
+            elif roll < 0.15:
+                self.x += 3.3
+            elif roll < 0.2:
+                self.move_to(random_.choice(self.model.patches))
+
+    m = Model(breeds={Busy: 40}, max_x=4, max_y=3)
+    m.do_setup()
+    for _ in range(100):
+        m.step()
+    for p in m.patches:
+        assert set(p.turtles) == {t for t in m.turtles if m.patch_at(t.x, t.y) is p}
+    assert sum(len(p.turtles) for p in m.patches) == len(m.turtles)

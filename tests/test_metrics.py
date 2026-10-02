@@ -93,3 +93,40 @@ def test_gui_adds_chart_panel_only_with_metrics():
         m.step()
     app.draw()  # more ticks than pixels: bucketed
     app.window.destroy()
+
+
+def test_grouped_metrics_become_columns_and_one_chart():
+    m = Model(metrics={"pop": lambda m: {"a": 1, "b": m.ticks}, "solo": lambda m: 5})
+    history = m.simulate(2)
+    assert history == {"tick": [0, 1, 2], "a": [1, 1, 1], "b": [0, 1, 2], "solo": [5, 5, 5]}
+    assert m.metric_groups == {"pop": ["a", "b"], "solo": ["solo"]}
+
+
+def test_grouped_series_can_appear_later():
+    m = Model(metrics={"pop": lambda m: {"a": 1} if m.ticks == 0 else {"a": 1, "b": 2}})
+    history = m.simulate(1)
+    assert history["b"] == [None, 2]
+    assert m.metric_groups == {"pop": ["a", "b"]}
+
+
+@pytest.mark.parametrize(
+    "metrics",
+    [
+        {"x": lambda m: {"tick": 1}},
+        {"x": lambda m: {"a": 1}, "y": lambda m: {"a": 2}},
+        {"a": lambda m: 1, "y": lambda m: {"a": 2}},
+    ],
+)
+def test_series_name_collisions_raise(metrics):
+    with pytest.raises(ValueError, match="series name"):
+        Model(metrics=metrics).simulate(0)
+
+
+def test_gui_draws_multi_series_chart():
+    m = Model(max_x=5, max_y=5, metrics={"pop": lambda m: {"a": m.ticks, "b": 2 * m.ticks, "c": 1}})
+    app = App(m, "multi")
+    m.do_setup()
+    for _ in range(300):
+        m.step()
+    app.draw()
+    app.window.destroy()

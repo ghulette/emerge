@@ -6,6 +6,7 @@ with 0 pointing north and angles increasing clockwise. The world wraps around
 at its edges.
 """
 
+import copy
 import math
 import random
 from collections.abc import Callable
@@ -50,11 +51,15 @@ class Turtle:
         size: float = 1.0,
     ):
         self.model = model
-        self.x = x
-        self.y = y
+        self._x = x
+        self._y = y
+        # The patch this turtle is indexed under (see Patch.turtles), or None
+        # if it isn't in the world yet.
+        self._patch: Patch | None = None
         self.heading = heading
         self.color = color
         self.size = size
+        self.alive = True
 
     # --- Override these -------------------------------------------------
 
@@ -65,6 +70,36 @@ class Turtle:
         """Called once per tick."""
 
     # --- State ----------------------------------------------------------
+
+    @property
+    def x(self) -> float:
+        return self._x
+
+    @x.setter
+    def x(self, value: float) -> None:
+        self._set_position(value, self._y)
+
+    @property
+    def y(self) -> float:
+        return self._y
+
+    @y.setter
+    def y(self, value: float) -> None:
+        self._set_position(self._x, value)
+
+    def _set_position(self, x: float, y: float) -> None:
+        self._x, self._y = x, y
+        if self._patch is not None:
+            patch = self.model.patch_at(x, y)
+            if patch is not self._patch:
+                del self._patch._turtles[self]
+                patch._turtles[self] = None
+                self._patch = patch
+
+    def _enter_world(self) -> None:
+        """Start tracking which patch this turtle is on."""
+        self._patch = self.model.patch_at(self._x, self._y)
+        self._patch._turtles[self] = None
 
     @property
     def heading(self) -> float:
@@ -85,9 +120,11 @@ class Turtle:
     def forward(self, distance: float) -> None:
         """Move `distance` patches in the direction of the current heading."""
         rad = math.radians(self._heading)
-        self.x, self.y = self.model.wrap(
-            self.x + distance * math.sin(rad),
-            self.y + distance * math.cos(rad),
+        self._set_position(
+            *self.model.wrap(
+                self._x + distance * math.sin(rad),
+                self._y + distance * math.cos(rad),
+            )
         )
 
     def back(self, distance: float) -> None:
@@ -110,7 +147,7 @@ class Turtle:
     @property
     def patch(self) -> "Patch":
         """The patch this turtle is standing on."""
-        return self.model.patch_at(self.x, self.y)
+        return self._patch or self.model.patch_at(self._x, self._y)
 
     def patch_ahead(self, distance: float) -> "Patch":
         """The patch `distance` patches ahead along the current heading."""
@@ -122,7 +159,33 @@ class Turtle:
 
     def move_to(self, target: "Turtle | Patch") -> None:
         """Jump to the location of a turtle or the center of a patch."""
-        self.x, self.y = target.x, target.y
+        self._set_position(target.x, target.y)
+
+    # --- Life and death ---------------------------------------------------
+
+    def die(self) -> None:
+        """Remove this turtle from the world. A turtle that dies during a
+        tick isn't stepped for the rest of it.
+        """
+        if self.alive:
+            self.alive = False
+            self.model.turtles.remove(self)
+            if self._patch is not None:
+                del self._patch._turtles[self]
+                self._patch = None
+
+    def hatch[T: Turtle](self: T, n: int = 1) -> list[T]:
+        """Create `n` copies of this turtle, like NetLogo's hatch: same class,
+        position, heading, color, and other attributes (shallow-copied). They
+        don't run `setup`, and start stepping next tick. Returns the new
+        turtles so you can adjust them.
+        """
+        children = [copy.copy(self) for _ in range(n)]
+        for child in children:
+            child.alive = True
+            child._enter_world()
+        self.model.turtles.extend(children)
+        return children
 
     def distance(self, target: "Turtle | Patch") -> float:
         """Distance to a turtle or patch center, the short way around the world."""
@@ -164,6 +227,9 @@ class Patch:
         self.x = x
         self.y = y
         self.color = "black"
+        # Turtles on this patch, kept up to date as they move. A dict, not a
+        # set, so iteration order is deterministic.
+        self._turtles: dict[Turtle, None] = {}
         self._neighbors: list[Patch] | None = None
         self._neighbors4: list[Patch] | None = None
 
@@ -210,7 +276,7 @@ class Patch:
     @property
     def turtles(self) -> list[Turtle]:
         """The turtles standing on this patch."""
-        return [t for t in self.model.turtles if t.patch is self]
+        return list(self._turtles)
 
     def patch_at(self, dx: int, dy: int) -> "Patch":
         """The patch offset by (dx, dy) from this one."""
@@ -240,6 +306,11 @@ class Model:
     functions of the model, or override the `metrics` method:
 
         Model(breeds={Cow: 30}, metrics={"cows": lambda m: len(m.turtles)})
+
+    A metric can also return a dict of numbers, to chart several series
+    together; each key becomes its own column in `history`:
+
+        metrics={"population": lambda m: {"wolves": ..., "sheep": ...}}
     """
 
     breeds: dict[type[Turtle], int] = {}
@@ -273,6 +344,8 @@ class Model:
         self._stopped = False
         self._metric_fns = metrics or {}
         self.history: dict[str, list[float | None]] = {"tick": []}
+        # Chart name -> the history columns charted on it.
+        self.metric_groups: dict[str, list[str]] = {}
 
     # --- Override these -------------------------------------------------
 
@@ -290,7 +363,8 @@ class Model:
         order = self.turtles[:]
         random.shuffle(order)
         for t in order:
-            t.step()
+            if t.alive:
+                t.step()
         # Stepping thousands of patches is slow, so skip it if it's a no-op.
         if self.patch_class.step is not Patch.step:
             order = self.patches[:]
@@ -298,9 +372,10 @@ class Model:
             for p in order:
                 p.step()
 
-    def metrics(self) -> dict[str, float]:
-        """The values to record this tick, by name. By default, evaluates the
-        `metrics` functions passed to the constructor.
+    def metrics(self) -> dict[str, float | dict[str, float]]:
+        """The values to record this tick, by name: numbers, or dicts of
+        numbers to chart together. By default, evaluates the `metrics`
+        functions passed to the constructor.
         """
         return {name: fn(self) for name, fn in self._metric_fns.items()}
 
@@ -363,6 +438,7 @@ class Model:
         new = []
         for _ in range(n):
             t = cls(self, heading=random.uniform(0, 360), color=colors.random())
+            t._enter_world()
             t.setup()
             new.append(t)
         self.turtles.extend(new)
@@ -377,6 +453,7 @@ class Model:
     def do_setup(self) -> None:
         self.clear()
         self.history = {"tick": []}
+        self.metric_groups = {}
         self.setup()
         self.record()
 
@@ -409,7 +486,18 @@ class Model:
         from some ticks is recorded as None there, so every column in
         `history` stays the same length (e.g. for `pandas.DataFrame(history)`).
         """
-        values = self.metrics()
+        values: dict[str, float] = {}
+        for name, value in self.metrics().items():
+            series = value if isinstance(value, dict) else {name: value}
+            group = self.metric_groups.setdefault(name, [])
+            for column, v in series.items():
+                if column not in group:
+                    owner = next((g for g, cols in self.metric_groups.items() if column in cols), None)
+                    if column == "tick" or owner is not None:
+                        where = "is reserved" if column == "tick" else f"is already used by {owner!r}"
+                        raise ValueError(f"metric series name {column!r} {where}")
+                    group.append(column)
+                values[column] = v
         n = len(self.history["tick"])
         for name in values:
             if name not in self.history:

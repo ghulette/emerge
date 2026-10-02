@@ -62,34 +62,58 @@ class ChartPanel:
         screen.blit(self.surface, self.app.px_rect(self.rect))
 
     def render(self, history: dict[str, list]) -> None:
-        app = self.app
         self.surface.fill(BG)
-        names = [name for name in history if name != "tick"]
-        if not names:
+        groups = self.app.model.metric_groups
+        if not groups:
             return
-        h = min(CHART_MAX_HEIGHT, (self.rect.height - CHART_GAP * (len(names) - 1)) / len(names))
-        for i, name in enumerate(names):
+        h = min(CHART_MAX_HEIGHT, (self.rect.height - CHART_GAP * (len(groups) - 1)) / len(groups))
+        color_index = 0
+        for i, (name, columns_) in enumerate(groups.items()):
+            series = []
+            for column in columns_:
+                series.append((column, history[column], SERIES[color_index % len(SERIES)]))
+                color_index += 1
             card = pygame.Rect(0, round(i * (h + CHART_GAP)), self.rect.width, round(h))
-            self.render_chart(card, name, history["tick"], history[name], SERIES[i % len(SERIES)])
+            self.render_chart(card, name, history["tick"], series)
 
-    def render_chart(self, card: pygame.Rect, name: str, ticks: list, values: list, color) -> None:
+    def render_chart(self, card: pygame.Rect, name: str, ticks: list, series: list) -> None:
+        """Draw one chart card. `series` is a list of (name, values, color)."""
         app, px, surf = self.app, self.app.px, self.surface
         box = pygame.Rect(px(card.x), px(card.y), px(card.width), px(card.height))
         pygame.draw.rect(surf, SURFACE, box, border_radius=px(8))
         pygame.draw.rect(surf, BORDER, box, width=max(1, px(1)), border_radius=px(8))
 
-        # Header: name and current value.
+        def latest(values):
+            return next((v for v in reversed(values) if v is not None), None)
+
+        # Header: the chart name, then either its single current value or a
+        # legend of each series' current value.
         pad = 12
         label = app.font_mono.render(name, True, TEXT_DIM)
         surf.blit(label, label.get_rect(topleft=(px(card.x + pad), px(card.y + pad))))
-        latest = next((v for v in reversed(values) if v is not None), None)
-        value = app.font_bold.render(format_value(latest), True, TEXT)
-        surf.blit(value, value.get_rect(topright=(px(card.right - pad), px(card.y + pad - 1))))
+        header = 24
+        if len(series) == 1:
+            value = app.font_bold.render(format_value(latest(series[0][1])), True, TEXT)
+            surf.blit(value, value.get_rect(topright=(px(card.right - pad), px(card.y + pad - 1))))
+        else:
+            lx, ly = card.x + pad, card.y + pad + 20
+            for column, values, color in series:
+                key = app.font_small.render(column, True, TEXT_DIM)
+                val = app.font_small.render(format_value(latest(values)), True, TEXT)
+                w = (key.get_width() + val.get_width()) / app.dpr + 22
+                if lx + w > card.right - pad and lx > card.x + pad:
+                    lx, ly = card.x + pad, ly + 16
+                cy = px(ly + 6)
+                pygame.draw.circle(surf, color, (px(lx + 4), cy), px(3.5))
+                surf.blit(key, key.get_rect(midleft=(px(lx + 12), cy)))
+                surf.blit(val, val.get_rect(midleft=(px(lx + 12) + key.get_width() + px(5), cy)))
+                lx += w
+            header = ly - card.y - pad + 22
 
-        present = [t for t, v in zip(ticks, values) if v is not None]
-        if not present:
+        present = [t for t, *vs in zip(ticks, *(values for _, values, _ in series)) if any(v is not None for v in vs)]
+        present_values = [v for _, values, _ in series for v in values if v is not None]
+        if not present_values:
             return
-        present_values = [v for v in values if v is not None]
         lo, hi = min(present_values), max(present_values)
         if lo == hi:
             lo, hi = lo - 1, hi + 1
@@ -97,13 +121,12 @@ class ChartPanel:
         gutter = max(app.font_small.size(format_value(v))[0] for v in (lo, hi)) / app.dpr + 8
         plot = pygame.Rect(
             px(card.x + pad + gutter),
-            px(card.y + pad + 24),
+            px(card.y + pad + header),
             px(card.width - 2 * pad - gutter),
-            px(card.height - 2 * pad - 24 - 16),
+            px(card.height - 2 * pad - header - 16),
         )
         if plot.height < px(10):
             return
-        cols = columns(ticks, values, plot.width // max(1, px(1)))
         t0, t1 = present[0], present[-1]
         span = max(1, t1 - t0)
 
@@ -113,7 +136,7 @@ class ChartPanel:
         def y(v):
             return plot.bottom - (v - lo) / (hi - lo) * plot.height
 
-        # Faint grid line at the middle, then min/max labels.
+        # Faint grid line at the middle, then min/max and tick labels.
         mid = plot.centery
         pygame.draw.line(surf, BORDER, (plot.left, mid), (plot.right, mid), max(1, px(1)))
         for v, anchor in ((hi, "topright"), (lo, "bottomright")):
@@ -123,20 +146,25 @@ class ChartPanel:
             text = app.font_small.render(f"{t:,}", True, TEXT_DIM)
             surf.blit(text, text.get_rect(**{anchor: (plot.left if anchor == "topleft" else plot.right, plot.bottom + px(4))}))
 
-        line = [(x(t), y(mean)) for t, mean, _, _ in cols]
-        if len(line) == 1:
-            pygame.draw.circle(surf, color, line[0], px(2.5))
-            return
-
-        # Translucent fill under the line, plus the min/max envelope when
-        # several ticks share a column.
+        # Translucent fills (and min/max envelopes, when several ticks share
+        # a pixel column) go on one overlay; lines go on top.
         overlay = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
-        area = [(line[0][0], plot.bottom), *line, (line[-1][0], plot.bottom)]
-        pygame.draw.polygon(overlay, (*color, 38), area)
-        if any(low != high for _, _, low, high in cols):
-            band = [(x(t), y(high)) for t, _, _, high in cols] + [(x(t), y(low)) for t, _, low, _ in reversed(cols)]
-            pygame.draw.polygon(overlay, (*color, 70), band)
+        fill_alpha = 38 if len(series) == 1 else 18
+        lines = []
+        for _, values, color in series:
+            cols = columns(ticks, values, plot.width // max(1, px(1)))
+            line = [(x(t), y(mean)) for t, mean, _, _ in cols]
+            lines.append((line, color))
+            if len(line) < 2:
+                continue
+            area = [(line[0][0], plot.bottom), *line, (line[-1][0], plot.bottom)]
+            pygame.draw.polygon(overlay, (*color, fill_alpha), area)
+            if any(low != high for _, _, low, high in cols):
+                band = [(x(t), y(high)) for t, _, _, high in cols] + [(x(t), y(low)) for t, _, low, _ in reversed(cols)]
+                pygame.draw.polygon(overlay, (*color, 70), band)
         surf.blit(overlay, (0, 0))
-        pygame.draw.lines(surf, color, False, line, max(2, px(1.5)))
-        end = line[-1]
-        pygame.draw.circle(surf, color, end, px(3))
+        for line, color in lines:
+            if len(line) >= 2:
+                pygame.draw.lines(surf, color, False, line, max(2, px(1.5)))
+            if line:
+                pygame.draw.circle(surf, color, line[-1], px(3))

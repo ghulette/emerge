@@ -15,6 +15,7 @@ def example_models():
     life = load_example("life")
     cat_and_mouse = load_example("cat_and_mouse")
     attractor = load_example("attractor")
+    wolf_sheep = load_example("wolf_sheep")
     return {
         "wander": Model(breeds={wander.Wanderer: 20}),
         "circles": Model(breeds={circles.Circler: 10}),
@@ -28,6 +29,7 @@ def example_models():
             breeds={attractor.Sun: 1, attractor.Particle: 20},
             patch_class=attractor.Space,
         ),
+        "wolf_sheep": wolf_sheep.model(),
     }
 
 

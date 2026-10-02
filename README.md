@@ -43,6 +43,8 @@ Don't override `__init__`. Each turtle can reach the world through `self.model`
 - `move_to(turtle_or_patch)`
 - `patch` (the patch underfoot), `patch_ahead(d)`
 - `face(target)`: turn toward a turtle or patch
+- `die()`: remove the turtle from the world
+- `hatch(n=1)`: create `n` copies of the turtle (same class, position, and attributes) and return them
 - `towards(target)`, `distance(target)`: heading to and distance from a turtle or patch
 - `x`, `y`, `heading`, `color`, `size` attributes
 
@@ -135,6 +137,17 @@ run(Model(breeds={Cow: 30}, patch_class=Grass, metrics={"grass %": grass_percent
 
 (Or subclass `Model` and override `metrics()` to return a dict.)
 
+To chart several series together, return a dict of numbers. Each key gets its own line,
+color, and legend entry, and its own column in `history`:
+
+```python
+def population(model):
+    sheep = sum(isinstance(t, Sheep) for t in model.turtles)
+    return {"sheep": sheep, "wolves": len(model.turtles) - sheep}
+
+Model(..., metrics={"population": population, "grass %": grass_percent})
+```
+
 The values build up in `model.history`, a dict of equal-length lists with a `"tick"`
 column, so it drops straight into pandas. `model.simulate(ticks)` sets up and runs a model
 without a window and returns the history, which is handy for notebooks and parameter sweeps:
@@ -158,6 +171,7 @@ Run any of these with `uv run examples/<name>.py`.
 | [`grazing.py`](examples/grazing.py) | Patches with state, turtles changing the patch underfoot, emoji shapes, and a live chart |
 | [`life.py`](examples/life.py) | Patches only: Conway's Game of Life with a custom `go()` |
 | [`cat_and_mouse.py`](examples/cat_and_mouse.py) | `face`, `distance`, and `scale_color` |
+| [`wolf_sheep.py`](examples/wolf_sheep.py) | Predator–prey with grass, after NetLogo's classic: `die`, `hatch`, and a multi-series chart |
 | [`attractor.py`](examples/attractor.py) | Turtles with their own state (velocity) orbiting an emoji sun and spiraling in, with live charts |
 
 | Game of Life | Cat and mouse | Attractor |
