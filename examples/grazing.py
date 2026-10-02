@@ -19,8 +19,10 @@ class Grass(Patch):
 
 
 class Cow(Turtle):
+    shape = "🐄"
+
     def setup(self):
-        self.color = "white"
+        self.size = 1.6
         self.move_to(random.choice(self.model.patches))
 
     def step(self):

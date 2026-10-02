@@ -10,6 +10,7 @@ import time
 import pygame
 import pygame.gfxdraw
 
+from .emoji import EmojiRenderer
 from .model import Model, Turtle
 
 # --- Theme ----------------------------------------------------------------
@@ -49,7 +50,8 @@ FPS = 60
 # Turtle outline in turtle-local coordinates for a size-1 turtle: x is to the
 # turtle's right, y is straight ahead.
 TURTLE_SHAPE = [(0.0, 0.5), (0.4, -0.45), (0.0, -0.2), (-0.4, -0.45)]
-TURTLE_RADIUS = 0.5
+# Half the diagonal of a size-1 square: covers the arrow and rotated emoji.
+TURTLE_RADIUS = 0.71
 
 
 class Button:
@@ -89,6 +91,7 @@ class App:
         self.font_title = pygame.font.SysFont(UI_FONTS, self.px(17), bold=True)
         self.font_mono = pygame.font.SysFont(MONO_FONTS, self.px(12))
         self.clock = pygame.time.Clock()
+        self.emoji = EmojiRenderer()
 
         # World view, drawn at full pixel resolution.
         self.view_rect = pygame.Rect(
@@ -273,8 +276,17 @@ class App:
         )
 
     def draw_turtle(self, t: Turtle) -> None:
-        m = self.model
-        scale = m.patch_size * self.dpr
+        scale = self.model.patch_size * self.dpr
+        centers = self.turtle_centers(t, scale)
+        if t.shape is not None:
+            image = self.emoji.image(
+                t.shape, round(t.size * scale), t.shape_orient, t.heading, t.shape_facing
+            )
+            if image is not None:
+                for cx, cy in centers:
+                    self.view.blit(image, image.get_rect(center=(round(cx), round(cy))))
+                return
+
         rad = math.radians(t.heading)
         sin, cos = math.sin(rad), math.cos(rad)
         # Rotate clockwise by heading: "ahead" maps to (sin, cos).
@@ -282,7 +294,16 @@ class App:
             (lx * t.size * cos + ly * t.size * sin, -lx * t.size * sin + ly * t.size * cos)
             for lx, ly in TURTLE_SHAPE
         ]
-        # A turtle overlapping an edge is also drawn on the opposite side.
+        for cx, cy in centers:
+            points = [(round(cx + dx * scale), round(cy - dy * scale)) for dx, dy in local]
+            pygame.gfxdraw.filled_polygon(self.view, points, t.color)
+            pygame.gfxdraw.aapolygon(self.view, points, t.color)
+
+    def turtle_centers(self, t: Turtle, scale: float) -> list[tuple[float, float]]:
+        """Where to draw a turtle in view pixels. A turtle overlapping an edge
+        is also drawn on the opposite side.
+        """
+        m = self.model
         r = TURTLE_RADIUS * t.size
         x_offsets, y_offsets = [0], [0]
         if t.x + r > m.max_x + 0.5:
@@ -293,13 +314,11 @@ class App:
             y_offsets.append(-m.height)
         if t.y - r < -m.max_y - 0.5:
             y_offsets.append(m.height)
-        for ox in x_offsets:
-            for oy in y_offsets:
-                cx = (t.x + ox + m.max_x + 0.5) * scale
-                cy = (m.max_y + 0.5 - t.y - oy) * scale
-                points = [(round(cx + dx * scale), round(cy - dy * scale)) for dx, dy in local]
-                pygame.gfxdraw.filled_polygon(self.view, points, t.color)
-                pygame.gfxdraw.aapolygon(self.view, points, t.color)
+        return [
+            ((t.x + ox + m.max_x + 0.5) * scale, (m.max_y + 0.5 - t.y - oy) * scale)
+            for ox in x_offsets
+            for oy in y_offsets
+        ]
 
     def draw_header(self) -> None:
         bar = pygame.Rect(0, 0, self.win_w, HEADER_HEIGHT)

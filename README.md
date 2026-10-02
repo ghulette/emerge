@@ -57,6 +57,30 @@ or `(r, g, b)` tuples.
 shade of `color` running from black at `low`, through the color itself, to white at
 `high`. Swap `low` and `high` to reverse it. See `examples/cat_and_mouse.py`.
 
+### Emoji shapes
+
+Turtles are drawn as arrows in their `color` by default. Set `shape` to an emoji to draw
+that instead, and `shape_orient` to choose how it follows the turtle's heading:
+
+```python
+class Cow(Turtle):
+    shape = "🐄"
+    shape_orient = "flip_x"   # the default
+    shape_facing = 270        # the direction the emoji is drawn facing (west)
+```
+
+| `shape_orient` | The emoji... |
+| --- | --- |
+| `None` | never changes |
+| `"rotate"` | rotates so its facing direction matches the heading |
+| `"flip_x"` | mirrors left/right to face east or west |
+| `"flip_y"` | mirrors top/bottom to face north or south |
+| `"flip_xy"` | does both, e.g. 🚀 with `shape_facing = 45` |
+
+Most animal emoji face west, hence the default `shape_facing = 270`. These can be class
+attributes or set per turtle. Emoji use the system's color emoji font; if there isn't one
+(or it lacks the glyph), the turtle falls back to an arrow with a warning.
+
 ## Patches
 
 The world is a grid of patches with integer coordinates. To give them state and behavior,
@@ -105,7 +129,7 @@ Run any of these with `uv run examples/<name>.py`.
 | --- | --- |
 | [`wander.py`](examples/wander.py) | Turtles moving, turning, and changing color |
 | [`circles.py`](examples/circles.py) | Turtle `setup()`, and a model stopping itself |
-| [`grazing.py`](examples/grazing.py) | Patches with state, and turtles changing the patch underfoot |
+| [`grazing.py`](examples/grazing.py) | Patches with state, turtles changing the patch underfoot, and emoji shapes |
 | [`life.py`](examples/life.py) | Patches only: Conway's Game of Life with a custom `go()` |
 | [`cat_and_mouse.py`](examples/cat_and_mouse.py) | `face`, `distance`, and `scale_color` |
 

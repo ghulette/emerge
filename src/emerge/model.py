@@ -19,7 +19,25 @@ class Turtle:
     Don't override `__init__`; do per-turtle initialization in `setup`, which
     runs right after the model creates the turtle (with a random heading and
     color, at the origin).
+
+    By default a turtle is drawn as an arrow in its `color`. Set `shape` to an
+    emoji to draw that instead (in its own colors). `shape_orient` controls how
+    the emoji follows the turtle's heading:
+
+    - None: never changes.
+    - "rotate": rotates so its facing direction matches the heading.
+    - "flip_x": mirrors left/right to face east or west (the default).
+    - "flip_y": mirrors top/bottom to face north or south.
+    - "flip_xy": both flips, e.g. for an emoji drawn facing diagonally.
+
+    `shape_facing` is the heading the emoji is drawn facing: 270 (west) for
+    most animal emoji, 45 for 🚀. These can be set per turtle or as class
+    attributes.
     """
+
+    shape: str | None = None
+    shape_orient: str | None = "flip_x"
+    shape_facing: float = 270.0
 
     def __init__(
         self,
