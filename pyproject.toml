@@ -1,0 +1,16 @@
+[project]
+name = "emerge"
+version = "0.1.0"
+description = "A NetLogo-like agent-based modeling library in plain Python"
+readme = "README.md"
+authors = [
+    { name = "Geoff Hulette", email = "geoff@hulette.net" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "pygame-ce>=2.5.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
